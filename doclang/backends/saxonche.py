@@ -144,11 +144,13 @@ class SaxoncheValidator:
         if allow_empty_namespace:
             xml_doc = _ensure_namespace(xml_doc)
 
-        with tempfile.NamedTemporaryFile(mode="wb", suffix=".xml", delete=True) as tmp:
-            # Never re-emit a DOCTYPE: Saxon would otherwise expand entities.
-            _write_xml_without_dtd(xml_doc, tmp)
-            tmp.flush()
-            tmp_xml_path = tmp.name
+        # Saxon reopens the file by name, which Windows forbids while this process still holds it open
+        # (delete=True). Close it before transforming and remove it afterwards instead.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_xml_path = str(Path(tmp_dir) / "doclang.xml")
+            with open(tmp_xml_path, "wb") as tmp:
+                # Never re-emit a DOCTYPE: Saxon would otherwise expand entities.
+                _write_xml_without_dtd(xml_doc, tmp)
 
             with PySaxonProcessor(license=False) as proc:
                 if verbose:
